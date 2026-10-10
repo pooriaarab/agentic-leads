@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "agentic-leads": {
+      "command": "npx",
+      "args": ["-y", "agentic-leads", "mcp"]
+    }
+  }
+}

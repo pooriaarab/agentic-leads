@@ -1,0 +1,11 @@
+# Agentic leads
+
+Find prospects from places, files, and feeds.
+
+SDK: findLeads, GooglePlacesAdapter, ApifyAdapter, ApolloAdapter,
+CountyFileAdapter, StormFeedAdapter.
+CLI: agentic-leads search --query "services"; defaults to a dry run.
+MCP: search_leads, list_sources, get_cost_report.
+Docs: https://github.com/pooriaarab/agentic-leads
+Core: https://github.com/pooriaarab/agentic-leads/blob/main/docs/agentic-core.md
+License: MIT
