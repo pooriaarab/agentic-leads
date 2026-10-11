@@ -1,11 +1,12 @@
 {
   "name": "agentic-leads",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Find prospects from places, files, and feeds.",
   "keywords": [
     "lead-generation",
     "prospecting",
     "apollo",
+    "treg",
     "agentic-suite",
     "claude-code",
     "codex",

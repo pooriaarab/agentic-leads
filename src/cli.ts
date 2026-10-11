@@ -6,12 +6,12 @@ import { defaultAdapters, findLeads, listSources, selectAdapters, type LeadAdapt
 import { DEFAULT_BRAND } from "./index.js";
 import { VERSION } from "./version.js";
 export class UsageError extends Error { constructor(message: string) { super(message); this.name = "UsageError"; } }
-export type CliCommand = "search" | "sources" | "costs" | "mcp" | "help" | "version";
+export type CliCommand = "search" | "sources" | "costs" | "doctor" | "mcp" | "help" | "version";
 export interface CliRequest extends LeadQuery { command: CliCommand; dryRun: boolean; source: string }
 export function parseArgs(argv: string[]): CliRequest {
   const args = [...argv]; const first = args.shift() ?? "help";
   const command = first === "--help" || first === "-h" ? "help" : first === "--version" || first === "-V" ? "version" : first;
-  if (!["search", "sources", "costs", "mcp", "help", "version"].includes(command)) throw new UsageError(`unknown command "${first}"`);
+  if (!["search", "sources", "costs", "doctor", "mcp", "help", "version"].includes(command)) throw new UsageError(`unknown command "${first}"`);
   const request: CliRequest = { command: command as CliCommand, query: "", dryRun: true, source: "all" };
   while (args.length) {
     const flag = args.shift()!;
@@ -31,7 +31,7 @@ export function parseArgs(argv: string[]): CliRequest {
   if (command === "search" && !defaultAdapters().some(a => a.name === request.source) && request.source !== "all") throw new UsageError(`unknown source: ${request.source}`);
   return request;
 }
-export interface CliIo { out(line: string): void; err(line: string): void; adapters?: LeadAdapter[] }
+export interface CliIo { out(line: string): void; err(line: string): void; adapters?: LeadAdapter[]; fetchFn?: typeof fetch }
 function helpText(): string {
   return `${DEFAULT_BRAND.name} ${VERSION}
 ${DEFAULT_BRAND.description}
@@ -43,6 +43,7 @@ Commands:
          [--limit <n>] [--file <p>] [--live]
   sources   List sources and key status.
   costs     Print session cost totals.
+  doctor    Check catalog reach, token tier, and balance.
   mcp       Start the MCP server on stdio.
   help      Print this help.
   version   Print the version.
@@ -60,6 +61,7 @@ export async function runCli(argv: string[], io: CliIo = { out: console.log, err
       case "version": io.out(VERSION); return 0;
       case "sources": io.out(JSON.stringify(listSources(adapters))); return 0;
       case "costs": io.out(JSON.stringify(getCostReport())); return 0;
+      case "doctor": { const { readDoctor } = await import("./treg.js"); io.out(JSON.stringify(await readDoctor({ fetchFn: io.fetchFn }))); return 0; }
       case "mcp": { const { startMcp } = await import("./mcp.js"); await startMcp({ adapters }); return 0; }
       case "search": {
         const { query, area, limit, file } = request;
