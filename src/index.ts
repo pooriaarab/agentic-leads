@@ -39,9 +39,10 @@ import { defineBrand, type BrandConfig } from "./core.js";
 import { VERSION } from "./version.js";
 
 export * from "./leads.js";
+export * from "./treg.js";
 export const DEFAULT_BRAND: BrandConfig = defineBrand({
   name: "Agentic leads", command: "agentic-leads",
   description: "Find prospects from places, files, and feeds.",
-  keywords: ["lead-generation", "prospecting", "apollo", "agentic-suite", "claude-code", "codex", "cli", "mcp"],
+  keywords: ["lead-generation", "prospecting", "apollo", "treg", "agentic-suite", "claude-code", "codex", "cli", "mcp"],
   version: VERSION,
 });

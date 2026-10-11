@@ -1,5 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { VendorError, recordCost, type Guards, type Logger } from "./core.js";
+import { TregAdapter } from "./treg.js";
+import { VERSION } from "./version.js";
 
 export interface Lead { name: string; source: string; address?: string; phone?: string; website?: string; email?: string; area?: string; meta?: Record<string, unknown> }
 export interface LeadQuery { query: string; area?: string; limit?: number; file?: string }
@@ -139,12 +141,12 @@ export class StormFeedAdapter extends RemoteAdapter {
   async search(q: LeadQuery): Promise<Lead[]> {
     if (!q.area || !/^[a-z]{2}$/i.test(q.area)) throw new VendorError("storm-feed: area needs a two-letter state code");
     const area = q.area.toUpperCase();
-    const payload = object(await this.request(`https://api.weather.gov/alerts/active?area=${area}`, { headers: { "User-Agent": "agentic-leads/0.1.0 (https://github.com/pooriaarab/agentic-leads)", accept: "application/geo+json" } }));
+    const payload = object(await this.request(`https://api.weather.gov/alerts/active?area=${area}`, { headers: { "User-Agent": `agentic-leads/${VERSION} (https://github.com/pooriaarab/agentic-leads)`, accept: "application/geo+json" } }));
     return rows(payload.features).slice(0, q.limit).map(f => { const p = object(f.properties); return { name: name(p.event), source: this.name, area, meta: { headline: p.headline, onset: p.onset } }; });
   }
 }
 export function defaultAdapters(): LeadAdapter[] {
-  return [new GooglePlacesAdapter(), new ApifyAdapter({ actorId: process.env.APIFY_ACTOR_ID ?? "compass/crawler-google-places" }), new ApolloAdapter(), new CountyFileAdapter(), new StormFeedAdapter()];
+  return [new GooglePlacesAdapter(), new ApifyAdapter({ actorId: process.env.APIFY_ACTOR_ID ?? "compass/crawler-google-places" }), new ApolloAdapter(), new CountyFileAdapter(), new StormFeedAdapter(), new TregAdapter()];
 }
 export function selectAdapters(adapters: LeadAdapter[], source = "all"): LeadAdapter[] {
   if (source === "all") return adapters;
@@ -154,5 +156,9 @@ export function selectAdapters(adapters: LeadAdapter[], source = "all"): LeadAda
 }
 export function listSources(adapters: LeadAdapter[] = defaultAdapters()) {
   const keys: Record<string, string> = { "google-places": "GOOGLE_PLACES_API_KEY", apify: "APIFY_TOKEN", apollo: "APOLLO_API_KEY" };
-  return adapters.map(a => ({ name: a.name, keyRequired: !!keys[a.name], keySet: keys[a.name] ? !!process.env[keys[a.name]]?.trim() : false }));
+  const optional: Record<string, string> = { treg: "TREG_TOKEN" };
+  return adapters.map(a => {
+    const env = keys[a.name] ?? optional[a.name];
+    return { name: a.name, keyRequired: !!keys[a.name], keySet: env ? !!process.env[env]?.trim() : false };
+  });
 }

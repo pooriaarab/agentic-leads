@@ -37,6 +37,7 @@ Reports stay in the current process and reset when it exits.
 | apollo | APOLLO_API_KEY | People, public titles, organizations, locations |
 | county-file | --file or constructor file | Local CSV records |
 | storm-feed | --area with a two-letter state code | Active NWS events and headlines |
+| treg | TREG_TOKEN optional; anonymous tier calls free endpoints | People, companies, hiring signals, emails |
 
 Keys also accept `apiKey` in adapter constructors.
 Network adapters accept `fetchFn` and `timeoutMs`.
@@ -49,6 +50,51 @@ The sample CSV uses `name,address,area,phone`.
 CountyFileAdapter accepts a fieldMap for different column names.
 It filters rows by query text and area, then applies the limit.
 Quoted commas, escaped quotes, and multiline fields parse as CSV.
+
+## Treg
+
+Treg routes one call to the best provider for the job.
+Search the catalog, read the price, then call by id.
+Set TREG_TOKEN for metered calls, or stay anonymous for free endpoints.
+Every live search reads the price first and refuses a missing price.
+It also refuses a price above maxCostUsd, which defaults to $1.
+Each call carries that ceiling to the server, so spend stays capped.
+Run `doctor` to check catalog reach, token tier, and balance.
+
+Enrich a company from its domain and list its open roles as signals:
+
+```sh
+node dist/cli.js doctor
+node dist/cli.js search --query "shop.test" --source treg --live
+```
+
+```js
+import { TregAdapter, findLeads } from "./dist/index.js";
+
+const companies = new TregAdapter({ capability: "companies" });
+console.log(await findLeads({ query: "shop.test" }, { adapters: [companies], dryRun: true }));
+
+const signals = new TregAdapter({ capability: "signals" });
+console.log(await findLeads({ query: "shop.test" }, { adapters: [signals], dryRun: true }));
+```
+
+Find decision makers at a company, then verify one mailbox:
+
+```js
+import { searchCatalog, getEndpointPrice, callEndpoint } from "./dist/index.js";
+
+const hits = await searchCatalog("people search enrichment");
+console.log(hits.map(h => `${h.id} $${h.usd}`));
+console.log(await getEndpointPrice("treg.people.search"));
+const people = await callEndpoint("treg.people.search", {
+  method: "POST", body: { q: "owner", limit: 3 },
+});
+console.log(people.result, people.costMicro);
+const verdict = await callEndpoint("treg.people.email.verify", {
+  method: "POST", body: { email: "owner@shop.test" },
+});
+console.log(verdict.result, verdict.costMicro);
+```
 
 ## SDK
 

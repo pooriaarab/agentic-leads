@@ -7,4 +7,5 @@ Preview searches first. Set dryRun false only for an authorized live call.
 Select sources with source or sources. Call list_sources to check key status.
 Call get_cost_report to read session units. Units count leads, not currency.
 Respect guard denials. Report each failed source as a failure.
+Use the treg source for enrichment and signals; run doctor to check tier and balance.
 Never change the frozen core contract.
