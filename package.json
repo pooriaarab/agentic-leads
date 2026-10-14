@@ -1,6 +1,6 @@
 {
   "name": "agentic-leads",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Find leads with Google Places, Apify, Apollo, Treg, local CSV files, and National Weather Service alerts through a TypeScript SDK, CLI, and MCP.",
   "keywords": [
     "lead-generation",
