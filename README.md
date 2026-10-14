@@ -1,144 +1,84 @@
-# Agentic leads
+# agentic-leads
 
-Find prospects from places, files, and feeds.
+[![npm version](https://img.shields.io/npm/v/agentic-leads)](https://www.npmjs.com/package/agentic-leads) [![Downloads/month](https://img.shields.io/npm/dm/agentic-leads)](https://www.npmjs.com/package/agentic-leads) [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](https://opensource.org/license/mit)
 
-Build a call list for a local service area.
-Enrich a contact list with public titles.
-Watch public alert feeds for an area.
+[Package and API types](https://www.npmjs.com/package/agentic-leads)
 
-## Start
+agentic-leads is an open-source prospecting adapter package for developers searching business data, local CSV records, enrichment endpoints, and weather alerts.
 
-Use Node.js 18 or later. Install and check the package:
+## Install
 
 ```sh
-npm install
-npm run build
-npm run typecheck
-npm test
-node dist/cli.js --help
-node dist/cli.js sources
-node dist/cli.js search --query "services" --area CA --source google-places --limit 5
-node dist/cli.js search --query "Sample" --source county-file --file examples/county.csv --live
-node dist/cli.js costs
+npm install agentic-leads
 ```
 
-Search defaults to a dry run. It calls no source and records no cost.
-Add `--live` to call sources. Select one with `--source`, or use `all`.
-Each source returns its own success or error. Failed sources cause CLI exit 1.
-Bad CLI usage exits 2. Cost entries count leads, not currency.
-Reports stay in the current process and reset when it exits.
+Requires Node.js 18 or later. Includes TypeScript types and three direct runtime dependencies.
 
-## Sources
+## Find your first local lead
 
-| Source | Setup | Result |
+Create a CSV file, then preview the search before reading it:
+
+```sh
+printf 'name,address,area,phone\nSample Services,1 Main St,CA,555-0100\n' > leads.csv
+npx agentic-leads search --query Sample --source county-file --file leads.csv
+npx agentic-leads search --query Sample --source county-file --file leads.csv --live
+```
+
+The preview prints `dryRun: true`. The live local search prints `ok: true` and a lead named `Sample Services`.
+This example needs no credentials and makes no network request.
+
+```js
+import { findLeads, CountyFileAdapter, getCostReport } from "agentic-leads";
+const options = { adapters: [new CountyFileAdapter({ file: "leads.csv" })] };
+console.log(await findLeads({ query: "Sample" }, { ...options, dryRun: true }));
+console.log(await findLeads({ query: "Sample" }, { ...options, dryRun: false }));
+console.log(getCostReport());
+```
+
+## How it works
+
+```text
+SDK / CLI / MCP -> selected sources -> per-source leads OR error
+```
+
+## Source coverage
+
+| Source | Status and result | Setup |
 | --- | --- | --- |
-| google-places | GOOGLE_PLACES_API_KEY | Names, addresses, phones, websites |
-| apify | APIFY_TOKEN; APIFY_ACTOR_ID selects an actor | Mapped dataset items |
-| apollo | APOLLO_API_KEY | People, public titles, organizations, locations |
-| county-file | --file or constructor file | Local CSV records |
-| storm-feed | --area with a two-letter state code | Active NWS events and headlines |
-| treg | TREG_TOKEN optional; anonymous tier calls free endpoints | People, companies, hiring signals, emails |
+| Google Places | Implemented HTTP; business names, addresses, phones, websites | `GOOGLE_PLACES_API_KEY` |
+| Apify | Implemented HTTP + polling; mapped actor dataset | `APIFY_TOKEN`; optional `APIFY_ACTOR_ID` |
+| Apollo | Implemented HTTP; people, titles, organizations | `APOLLO_API_KEY` |
+| Local county file | CSV; filtered local records | `--file` or constructor `file` |
+| National Weather Service | Implemented HTTP; active alerts, not contacts | `--area` with a two-letter state code |
+| Treg | Implemented HTTP; people, companies, job signals, emails | Optional `TREG_TOKEN`, `TREG_ORG` |
 
-Keys also accept `apiKey` in adapter constructors.
-Network adapters accept `fetchFn` and `timeoutMs`.
-Storm feeds need no key and send a User-Agent.
-Apollo search does not promise email addresses or contact enrichment by email.
-Alerts describe events, not people or businesses.
-Google Places accepts limits from 1 to 20.
+The registry contains six sources. Remote integration credential checks are pending in this README review; local CSV behavior is tested.
+Export keys in your shell; the package does not load `.env` files. Key presence does not prove account access.
 
-The sample CSV uses `name,address,area,phone`.
-CountyFileAdapter accepts a fieldMap for different column names.
-It filters rows by query text and area, then applies the limit.
-Quoted commas, escaped quotes, and multiline fields parse as CSV.
+## Features and runtime surfaces
 
-## Treg
+- CLI commands: `search`, `sources`, `costs`, `doctor`, `mcp`, `help`, `version`. Search previews unless `--live` is set.
+- Model Context Protocol (MCP): `search_leads`, `list_sources`, `get_cost_report`; start `npx agentic-leads mcp`.
+- MCP accepts `source` or `sources`; CLI uses `--source`. The default selection is all six sources.
+- CSV defaults to `name,address,area,phone`; constructor `fieldMap` supports other columns. Quoted and multiline cells are supported.
+- Apify requires SDK `actorId`; CLI defaults to `compass/crawler-google-places`. Configure actor-specific `input` and `fieldMap` when needed.
+- Treg presets: `people`, `companies`, `signals`, `emails`; the email preset uses `hunter.companies.emails` through Treg.
+- Use `new TregAdapter({ capability: "companies" })` or `"signals"` for company enrichment or job signals.
+- Treg exports `searchCatalog`, `getEndpointPrice`, `callEndpoint`, `readBalance`, and `readDoctor`; CLI `doctor` checks reachability and token balance.
 
-Treg routes one call to the best provider for the job.
-Search the catalog, read the price, then call by id.
-Set TREG_TOKEN for metered calls, or stay anonymous for free endpoints.
-Every live search reads the price first and refuses a missing price.
-It also refuses a price above maxCostUsd, which defaults to $1.
-Each call carries that ceiling to the server, so spend stays capped.
-Run `doctor` to check catalog reach, token tier, and balance.
+## Behavior limits and status
 
-Enrich a company from its domain and list its open roles as signals:
+The SDK defaults to live searches. Set `dryRun: true` explicitly for previews; MCP and CLI preview by default.
+HTTP requests default to 10 seconds without automatic retries. Apify polling defaults to a 120-second deadline.
+Apollo search does not return email fields. Weather alerts describe events; they are not business or person leads.
+TregAdapter rejects missing prices and prices above `maxCostUsd` (default $1); calls send that ceiling as a request header.
+Direct `callEndpoint` sends the ceiling header without a local price lookup. Server enforcement and endpoint access depend on Treg.
+Costs count returned leads, not currency, and remain process-local; Treg metadata also exposes reported micro-costs.
+The repository includes a self-hosted Worker with health and search routes. Local CSV access requires a Node filesystem.
+Version 0.2.0 APIs can change. No managed prospect database is provided. Support uses repository issues; access may require permission.
 
-```sh
-node dist/cli.js doctor
-node dist/cli.js search --query "shop.test" --source treg --live
-```
+## Contributing and license
 
-```js
-import { TregAdapter, findLeads } from "./dist/index.js";
-
-const companies = new TregAdapter({ capability: "companies" });
-console.log(await findLeads({ query: "shop.test" }, { adapters: [companies], dryRun: true }));
-
-const signals = new TregAdapter({ capability: "signals" });
-console.log(await findLeads({ query: "shop.test" }, { adapters: [signals], dryRun: true }));
-```
-
-Find decision makers at a company, then verify one mailbox:
-
-```js
-import { searchCatalog, getEndpointPrice, callEndpoint } from "./dist/index.js";
-
-const hits = await searchCatalog("people search enrichment");
-console.log(hits.map(h => `${h.id} $${h.usd}`));
-console.log(await getEndpointPrice("treg.people.search"));
-const people = await callEndpoint("treg.people.search", {
-  method: "POST", body: { q: "owner", limit: 3 },
-});
-console.log(people.result, people.costMicro);
-const verdict = await callEndpoint("treg.people.email.verify", {
-  method: "POST", body: { email: "owner@shop.test" },
-});
-console.log(verdict.result, verdict.costMicro);
-```
-
-## SDK
-
-```js
-import { findLeads, CountyFileAdapter, ApifyAdapter } from "./dist/index.js";
-
-const preview = await findLeads({ query: "Sample" }, {
-  adapters: [new CountyFileAdapter({ file: "examples/county.csv" })],
-  dryRun: true,
-});
-console.log(preview);
-
-// Maps actor example. Supply APIFY_TOKEN before a live search.
-const maps = new ApifyAdapter({
-  actorId: "compass/crawler-google-places",
-  input: { searchStringsArray: ["services in CA"], maxCrawledPlacesPerSearch: 5 },
-  fieldMap: { name: "title", address: "address", phone: "phone", website: "website" },
-});
-console.log(maps.name);
-```
-
-ApifyAdapter requires actorId. Inputs depend on the actor.
-The CLI defaults to the maps actor above. Set APIFY_ACTOR_ID to change it.
-Apify polls the run, rejects failed runs, and reads the completed dataset.
-Use pollIntervalMs and pollTimeoutMs to control polling.
-
-findLeads accepts adapters, guards, logger, and dryRun.
-It checks guards before any adapter call and fans out live searches.
-Each live adapter call records a search entry, including zero units on failure.
-The SDK defaults to live mode; set dryRun true to preview.
-The package re-exports the frozen agentic-core API.
-
-## MCP and worker
-
-The `mcp` command and `agentic-leads-mcp` bin serve stdio MCP.
-Use search_leads with query, area, source or sources, limit, file, and dryRun.
-DryRun defaults to true. list_sources shows key status.
-get_cost_report reads session entries and unit totals.
-.mcp.json configures agentic-leads through npx.
-
-The worker serves GET /health and POST /search.
-Send query, area, source, limit, file, and live in a JSON body.
-It previews unless live is true. Local files require a Node filesystem.
-
-## License
-
-MIT. See LICENSE.
+Preview searches first, respect guard denials, report source failures, and read the session cost report after live work.
+Run `npm run build && npm run typecheck && npm test` before pushing. The `release` branch publishes new versions.
+License: MIT.
