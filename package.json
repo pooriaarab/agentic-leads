@@ -1,15 +1,19 @@
 {
   "name": "agentic-leads",
   "version": "0.2.0",
-  "description": "Find prospects from places, files, and feeds.",
+  "description": "Find leads with Google Places, Apify, Apollo, Treg, local CSV files, and National Weather Service alerts through a TypeScript SDK, CLI, and MCP.",
   "keywords": [
     "lead-generation",
     "prospecting",
+    "google-places",
+    "apify",
     "apollo",
     "treg",
-    "agentic-suite",
-    "claude-code",
-    "codex",
+    "hunter",
+    "csv",
+    "national-weather-service",
+    "enrichment",
+    "typescript",
     "cli",
     "mcp"
   ],
